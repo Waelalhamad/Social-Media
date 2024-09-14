@@ -11,6 +11,12 @@ exports.followUser = async (req, res) => {
         .send({ status: "fail", message: "User not found!" });
     }
 
+    if (userToFollow._id.equals(currentUser._id)) {
+      return res
+        .status(400)
+        .json({ status: "fail", message: "Cannot follow yourself!" });
+    }
+
     if (currentUser.following.includes(userToFollow._id)) {
       return res
         .status(400)
@@ -28,7 +34,7 @@ exports.followUser = async (req, res) => {
       message: `Now following ${userToFollow.username}`,
     });
   } catch (error) {
-    res.status(500).send({ status: "fail", message: error.message });
+    res.status(500).send({ status: "error", message: error.message });
   }
 };
 
@@ -40,31 +46,28 @@ exports.unfollowUser = async (req, res) => {
     if (!userToUnfollow) {
       return res
         .status(404)
-        .send({ status: "fail", message: "User not found!" });
+        .json({ status: "fail", message: "User not found!" });
     }
 
     if (!currentUser.following.includes(userToUnfollow._id)) {
       return res
         .status(400)
-        .send({ status: "fail", message: "You are not following this user!" });
+        .json({ status: "fail", message: "Not following this user!" });
     }
 
-    currentUser.following = currentUser.following.filter(
-      (id) => id.toString() !== userToUnfollow._id.toString()
-    );
-    userToUnfollow.followers = userToUnfollow.followers.filter(
-      (id) => id.toString() !== currentUser._id.toString()
-    );
+    // Remove the user from following/followers lists
+    currentUser.following.pull(userToUnfollow._id);
+    userToUnfollow.followers.pull(currentUser._id);
 
     await currentUser.save();
     await userToUnfollow.save();
 
-    res.status(200).send({
+    res.status(200).json({
       status: "success",
       message: `Unfollowed ${userToUnfollow.username}`,
     });
   } catch (error) {
-    res.status(500).send({ status: "fail", message: error.message });
+    res.status(500).json({ status: "error", message: error.message });
   }
 };
 
@@ -79,7 +82,11 @@ exports.getFollowers = async (req, res) => {
         .status(404)
         .send({ status: "fail", message: "User not found!" });
     }
-    res.status(200).send({ status: "success", data: user.followers });
+    res.status(200).send({
+      status: "success",
+      count: user.followers.length,
+      data: user.followers,
+    });
   } catch (error) {
     res.status(500).send({ status: "fail", message: error.message });
   }
@@ -96,7 +103,11 @@ exports.getFollowing = async (req, res) => {
         .status(404)
         .send({ status: "fail", message: "User not found!" });
     }
-    res.status(200).send({ status: "success", data: user.following });
+    res.status(200).send({
+      status: "success",
+      count: user.following.length,
+      data: user.following,
+    });
   } catch (error) {
     res.status(500).send({ status: "fail", message: error.message });
   }
