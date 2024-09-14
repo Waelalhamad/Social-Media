@@ -124,12 +124,21 @@ exports.resetPassword = async (req, res) => {
 exports.updatePassword = async (req, res) => {
   try {
     const body = req.body;
+
+    if (!req.user) {
+      return res.status(401).send({
+        status: "fail",
+        message: "User not authenticated",
+      });
+    }
+
     if (!body.currentPassword || !body.newPassword || !body.confirmPassword) {
       return res.status(403).send({
         status: "fail",
         message: "Provide all fields",
       });
     }
+
     const match = await bcrypt.compare(body.currentPassword, req.user.password);
     if (!match) {
       return res.status(403).send({
@@ -137,26 +146,31 @@ exports.updatePassword = async (req, res) => {
         message: "Incorrect Password",
       });
     }
+
     if (body.newPassword !== body.confirmPassword) {
       return res.status(403).send({
         status: "fail",
         message: "Passwords do not match",
       });
     }
+
     const hashedPassword = await bcrypt.hash(body.newPassword, 12);
-    const user = await User.findOneAndUpdate(req.user._id, {
-      password: hashedPassword,
-      passwordChangedAt: Date.now(),
-    });
-    console.log(user)
-    console.log(user.password)
-    console.log(user.passwordChangedAt)
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        password: hashedPassword,
+        passwordChangedAt: Date.now(),
+      },
+      { new: true } // Ensure the updated user is returned
+    );
+
     if (!user) {
       return res.status(403).send({
         status: "fail",
         message: "Failed to update the password",
       });
     }
+
     const token = await jwt.sign(
       { id: req.user._id },
       process.env.JWT_SECRET_KEY,
@@ -164,6 +178,7 @@ exports.updatePassword = async (req, res) => {
         expiresIn: process.env.JWT_EXPIRES_IN,
       }
     );
+
     res.status(200).send({ status: "success", token: token });
   } catch (error) {
     res.status(500).send({ status: "error", message: error.message });

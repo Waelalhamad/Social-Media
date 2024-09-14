@@ -1,12 +1,12 @@
 const mongoose = require("mongoose");
 
 const likeSchema = new mongoose.Schema({
-  userId: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
   },
-  postId: {
+  post: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Post",
     required: true,
@@ -16,3 +16,6 @@ const likeSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+
+module.exports = mongoose.model("Like", likeSchema);

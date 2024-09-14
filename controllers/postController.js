@@ -2,29 +2,36 @@ const Post = require("../models/Post");
 
 exports.createPost = async (req, res) => {
   try {
-    const { content, image } = req.body;
+    const { caption, image } = req.body;
+
+    if (!req.user) {
+      return res
+        .status(401)
+        .json({ status: false, message: "User not authenticated" });
+    }
+
     const user = req.user._id;
-    if (!content) {
+    if (!caption) {
       return res
         .status(400)
-        .json({ success: false, message: "Content is required" });
+        .json({ status: false, message: "caption is required" });
     }
 
     const post = new Post({
       user,
-      content,
+      caption,
       image,
     });
 
     await post.save();
 
     res.status(201).json({
-      success: true,
+      status: true,
       message: "Post created successfully",
       Post: post,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ status: false, message: error.message });
   }
 };
 
@@ -34,31 +41,35 @@ exports.getAllPosts = async (req, res) => {
       .populate("user", "username avatar")
       .sort({ createdAt: -1 });
     res.status(200).json({
-      status: "success",
+      status: "status",
       results: posts.length,
       Posts: posts,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ status: false, message: "Server Error" });
   }
 };
 
 exports.getPostById = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.postId).populate(
-      "user",
-      "username avatar"
-    );
+    const post = await Post.findById(req.params.postId)
+      .populate("user", "username avatar")
+      .populate("comments");
+
     if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
+      return res.status(404).json({ status: false, message: "Post not found" });
     }
-    res.status(200).json({ success: true, post });
+
+    res.status(200).json({
+      status: true,
+      post,
+      likeCount: post.likeCount,
+      dislikeCount: post.dislikeCount,
+      commentCount: post.commentCount,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ status: false, message: "Server Error" });
   }
 };
 
@@ -67,32 +78,30 @@ exports.updatePost = async (req, res) => {
     const post = await Post.findById(req.params.postId);
 
     if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
+      return res.status(404).json({ status: false, message: "Post not found" });
     }
 
     // Check if the logged-in user is the post owner
-    if (post.user.toString() !== req.user.id) {
+    if (post.user.toString() !== req.user.id.toString()) {
       return res
         .status(401)
-        .json({ success: false, message: "Unauthorized action" });
+        .json({ status: false, message: "Unauthorized action" });
     }
 
-    const { content, image } = req.body;
-    post.content = content || post.content;
+    const { caption, image } = req.body;
+    post.caption = caption || post.caption;
     post.image = image || post.image;
 
     await post.save();
 
     res.status(200).json({
-      success: true,
+      status: true,
       message: "Post updated successfully",
-      post,
+      Post: post,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ status: false, message: "Server Error" });
   }
 };
 
@@ -101,26 +110,24 @@ exports.deletePost = async (req, res) => {
     const post = await Post.findById(req.params.postId);
 
     if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
+      return res.status(404).json({ status: false, message: "Post not found" });
     }
 
     // Check if the logged-in user is the post owner
-    if (post.user.toString() !== req.user.id) {
+    if (post.user.toString() !== req.user._id.toString()) {
       return res
         .status(401)
-        .json({ success: false, message: "Unauthorized action" });
+        .json({ status: false, message: "Unauthorized action" });
     }
 
-    await post.remove();
+    // Correct way to delete the post
+    await Post.findByIdAndDelete(post._id);
 
     res.status(200).json({
-      success: true,
+      status: true,
       message: "Post deleted successfully",
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ status: false, message: error.message });
   }
 };

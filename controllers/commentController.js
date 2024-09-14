@@ -1,7 +1,6 @@
 const Comment = require("../models/Comment");
 const Post = require("../models/Post");
 
-
 exports.addComment = async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
@@ -15,10 +14,11 @@ exports.addComment = async (req, res) => {
     const comment = await Comment.create({
       text: req.body.text,
       post: req.params.postId,
-      user: req.user.id, // assuming req.user contains the authenticated user's id
+      user: req.user.id,
     });
 
     post.comments.push(comment._id);
+    post.commentCount += 1;
     await post.save();
 
     res.status(201).send({ status: "success", data: comment });
@@ -72,22 +72,17 @@ exports.deleteComment = async (req, res) => {
     const comment = await Comment.findByIdAndDelete(req.params.commentId);
 
     if (!comment) {
-      return res
-        .status(404)
-        .send({ status: "fail", message: "Comment not found!" });
+      return res.status(404).send({ status: "fail", message: "Comment not found!" });
     }
 
-    // Remove the comment from the post's comment array
     const post = await Post.findById(req.params.postId);
     post.comments = post.comments.filter(
       (commentId) => commentId.toString() !== req.params.commentId
     );
+    post.commentCount -= 1;
     await post.save();
 
-    res.status(200).send({
-      status: "success",
-      message: "Comment deleted successfully!",
-    });
+    res.status(200).send({ status: "success", message: "Comment deleted successfully!" });
   } catch (error) {
     res.status(500).send({ status: "fail", message: error.message });
   }

@@ -8,12 +8,11 @@ const postSchema = new mongoose.Schema({
   },
   caption: {
     type: String,
+    required: true,
     trim: true,
     maxlength: 1000,
   },
-  image: {
-    type: String,
-  },
+  image: String,
   comments: [
     {
       type: mongoose.Schema.Types.ObjectId,
@@ -26,7 +25,17 @@ const postSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  dislikes: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
   likeCount: {
+    type: Number,
+    default: 0,
+  },
+  dislikeCount: {
     type: Number,
     default: 0,
   },
